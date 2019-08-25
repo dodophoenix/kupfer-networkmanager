@@ -7,7 +7,7 @@ __kupfer_sources__ = ("ConnectionSource",)
 __kupfer_actions__ = ("Connect", "Disconnect",)
 __description__ = _("Connects and Disconnects vpn Connections using nmcli command")
 __version__ = ""
-__author__ = "Benjamin Jacob <benni.jacob@gmail.com>"
+__author__ = "Benjamin Jacob"
 
 from kupfer.objects import Action, Source, Leaf, TextLeaf
 from kupfer.obj.apps import ApplicationSource
@@ -16,13 +16,11 @@ import subprocess
 import os
 import time
 
-# icons
 connection_icon = "security-high"
 source_icon = "network-vpn"
 action_connect = "network-connect"
-action_disconnect = "network-disconnect"
+action_disconnect = "network_offline"
 
-# cli - commands
 listConnections = "nmcli -t -f uuid,name,type connection show"
 activeUuids = "nmcli -t -f uuid connection show --active"
 connectUUid = "nmcli connection up "
@@ -31,30 +29,30 @@ disconnectUUid = "nmcli connection down "
 
 class Connect(Action):
     def __init__(self):
-        Action.__init__(self, _("Connect"))
+        Action.__init__(self, _("Verbinden"))
 
     def activate(self, leaf):
         """thingy"""
-        run_cmd(connectUUid + leaf.uuid, True)
+        runCmd(connectUUid + leaf.uuid, True)
         leaf.active=True
 
     def get_description(self):
-        return _("connects a vpn connection")
+        return _("connects a vpn action")
 
     def get_icon_name(self):
         return action_connect
 
-   # def get_gicon(self):
-   #     return icons.ComposedIcon(source_icon, action_connect)
+    def get_gicon(self):
+        return icons.ComposedIcon(source_icon, action_connect)
 
 
 class Disconnect(Action):
     def __init__(self):
-        Action.__init__(self, _("Disconnect"))
+        Action.__init__(self, _("Trennen"))
 
     def activate(self, leaf):
         """thingy"""
-        run_cmd(disconnectUUid + leaf.uuid, True)
+        runCmd(disconnectUUid + leaf.uuid, True)
         leaf.active=False
 
     def get_description(self):
@@ -62,10 +60,8 @@ class Disconnect(Action):
 
     def get_icon_name(self):
         return action_disconnect
-
-   # def get_gicon(self):
-   #     return icons.ComposedIcon(source_icon, action_disconnect)
-
+    def get_gicon(self):
+        return icons.ComposedIcon(source_icon, action_disconnect)
 
 class ConnectionSource(ApplicationSource):
     source_user_reloadable = False
@@ -79,19 +75,19 @@ class ConnectionSource(ApplicationSource):
         return True
 
     def __init__(self):
-        self.connections = []
         Source.__init__(self, _("VPN - Connections"))
 
     def initialize(self):
-        active_ids = []
-        (stdout, exitcode) = run_cmd(activeUuids)
+        self.connections = []
+        activeIds = []
+        (stdout, exitcode) = runCmd(activeUuids)
         lines = stdout.split("\n")
         for activeUuid in lines:
             if not activeUuid:
                 continue
-            active_ids.append(activeUuid)
+            activeIds.append(activeUuid)
 
-        (stdout, exitcode) = run_cmd(listConnections)
+        (stdout, exitcode) = runCmd(listConnections)
         lines = stdout.split("\n")
         for connStr in lines:
             if not connStr:
@@ -104,9 +100,11 @@ class ConnectionSource(ApplicationSource):
             if type != "vpn":
                 continue
             active = False
-            if uuid in active_ids:
+            if uuid in activeIds:
                 active = True
+
             self.connections.append(Connection(uuid, name, active))
+
 
     def get_items(self):
         """thing"""
@@ -115,7 +113,7 @@ class ConnectionSource(ApplicationSource):
             yield connection
 
     def get_icon_name(self):
-        return source_icon
+        return connection_icon
 
     def provides(self):
         yield Connection
@@ -152,14 +150,14 @@ class Connection(Leaf):
     def get_icon_name(self):
         return connection_icon
 
-    #def get_gicon(self):
-    #    if self.active:
-    #        return icons.ComposedIcon(source_icon, action_connect)
-    #    else:
-    #        return icons.ComposedIcon(source_icon, action_disconnect)
+    def get_gicon(self):
+        if self.active:
+            return icons.ComposedIcon(source_icon, action_connect)
+        else:
+            return icons.ComposedIcon(source_icon, action_disconnect)
 
 
-def run_cmd(cmd, async=False):
+def runCmd(cmd, async=False):
     process = subprocess.Popen(cmd,
                                shell=True,
                                stdout=subprocess.PIPE,
