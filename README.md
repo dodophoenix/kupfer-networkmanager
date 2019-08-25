@@ -7,11 +7,11 @@ It uses `nmcli`- command to work.
 
 ## install 
 
-run install-ubuntu.sh to copy the 
+run `install-ubuntu.sh` to copy the 
 `vpn-nmcli.py` file to kupfer plugin dir
 
 
 ## dev
 
-use link-ubuntu.sh to link the `vpn-nmcli.py`
-to the dir
+use `link-ubuntu.sh` to link the `vpn-nmcli.py`
+to the dir for development purpose
