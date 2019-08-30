@@ -30,6 +30,7 @@ disconnectUUid = "nmcli connection down "
 # display only VPN connections
 vpnonly = True
 
+
 class Connect(Action):
     def __init__(self):
         Action.__init__(self, _("Connect"))
@@ -37,7 +38,7 @@ class Connect(Action):
     def activate(self, leaf):
         """thingy"""
         run_cmd(connectUUid + leaf.uuid, True)
-        leaf.active=True
+        leaf.active = True
 
     def get_description(self):
         return _("connects a vpn connection")
@@ -56,7 +57,7 @@ class Disconnect(Action):
     def activate(self, leaf):
         """thingy"""
         run_cmd(disconnectUUid + leaf.uuid, True)
-        leaf.active=False
+        leaf.active = False
 
     def get_description(self):
         return _("disconnects a vpn connection")
@@ -112,9 +113,9 @@ class ConnectionSource(ApplicationSource):
             if not connStr:
                 continue
             parts = connStr.split(":")
-            type = parts[2]
+            con_type = parts[2]
 
-            if vpnonly and type != "vpn":
+            if vpnonly and con_type != "vpn":
                 continue
             uuid = parts[0]
             name = parts[1]
@@ -176,10 +177,10 @@ class Connection(Leaf):
         return connection_icon
 
     def get_gicon(self):
-       if self.active:
-           return icons.ComposedIcon(source_icon, action_connect)
-       else:
-           return icons.ComposedIcon(source_icon, action_disconnect)
+        if self.active:
+            return icons.ComposedIcon(source_icon, action_connect)
+        else:
+            return icons.ComposedIcon(source_icon, action_disconnect)
 
 
 def run_cmd(cmd, async=False):
@@ -197,11 +198,11 @@ def run_cmd(cmd, async=False):
         stdoutdata = stdoutdata + line
 
     result = None
-    cntGate = 0
+    cnt_gate = 0
     while result is None:
         result = process.poll()
-        cntGate += 1
-        if cntGate > 50:
+        cnt_gate += 1
+        if cnt_gate > 50:
             break
         time.sleep(0.2)
     return [stdoutdata, process.returncode]
