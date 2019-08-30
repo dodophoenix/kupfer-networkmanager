@@ -1,4 +1,4 @@
-#vpn-nmcli
+# vpn-nmcli
 
 plugin for the kupfer quick launcher 
 to connect and disconnect vpn connections
