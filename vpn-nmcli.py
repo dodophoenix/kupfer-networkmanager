@@ -1,6 +1,5 @@
 """
-It *should* be possible to support Tomboy and Gnote equally since
-they support the same DBus protocol. This plugin takes this assumption.
+Start/Stop connections of NetworkManager via nmclia
 """
 __kupfer_name__ = _("VPN - NMCLI")
 __kupfer_sources__ = ("ConnectionSource",)
@@ -28,6 +27,8 @@ activeUuids = "nmcli -t -f uuid connection show --active"
 connectUUid = "nmcli connection up "
 disconnectUUid = "nmcli connection down "
 
+# display only VPN connections
+vpnonly = True
 
 class Connect(Action):
     def __init__(self):
@@ -80,33 +81,55 @@ class ConnectionSource(ApplicationSource):
 
     def __init__(self):
         self.connections = []
+        self.active_ids = []
+
+        # dont query connection - state in short intervals < 10 secs
+        self.last_update_con_state = 0
+        self.max_age_con_state_secs = 10
+
+        # available connections don't change often
+        self.last_update_connections = 0
+        self.max_age_connections_secs = 120
+
         Source.__init__(self, _("VPN - Connections"))
 
-    def initialize(self):
-        active_ids = []
+    def update_connection_states(self):
+        self.active_ids = []
         (stdout, exitcode) = run_cmd(activeUuids)
         lines = stdout.split("\n")
         for activeUuid in lines:
             if not activeUuid:
                 continue
-            active_ids.append(activeUuid)
+            self.active_ids.append(activeUuid)
 
+        for con in self.connections:
+            con.active = con.uuid in self.active_ids
+
+    def update_available_connections(self):
         (stdout, exitcode) = run_cmd(listConnections)
         lines = stdout.split("\n")
         for connStr in lines:
             if not connStr:
                 continue
             parts = connStr.split(":")
-            uuid = parts[0]
-            name = parts[1]
             type = parts[2]
 
-            if type != "vpn":
+            if vpnonly and type != "vpn":
                 continue
+            uuid = parts[0]
+            name = parts[1]
             active = False
-            if uuid in active_ids:
-                active = True
             self.connections.append(Connection(uuid, name, active))
+
+    def initialize(self):
+        now = time.time()
+        if now - self.max_age_connections_secs > self.last_update_connections:
+            self.update_available_connections()
+            self.last_update_connections = now
+
+        if now - self.max_age_con_state_secs > self.last_update_con_state:
+            self.update_connection_states()
+            self.last_update_con_state = now
 
     def get_items(self):
         """thing"""
