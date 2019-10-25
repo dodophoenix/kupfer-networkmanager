@@ -7,12 +7,16 @@ It uses `nmcli`- command  to work.
 Tested with nmcli 1.2.6
 
 ## install 
-
-run `install-ubuntu.sh` to copy the 
-`vpn-nmcli.py` file to kupfer plugin dir
+```
+git clone https://github.com/dodophoenix/kupfer-networkmanager
+cd kupfer-networkmanager
+sudo install-plugin.sh
+```
+The file `vpn-nmcli.py` gets copied to the plugin directory of the launcher.
+Restart the Laucher 
+Activate VPN-NMCLI . 
 
 
 ## dev
-
-use `link-ubuntu.sh` to link the `vpn-nmcli.py`
-to the dir for development purpose
+use `link-plugin.sh` to link the `vpn-nmcli.py`
+to the dir for development 
