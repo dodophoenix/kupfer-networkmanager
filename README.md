@@ -4,7 +4,9 @@ Plugin for the [Kupfer Launcher](https://github.com/kupferlauncher/kupfer)
 to connect and disconnect vpn-connections managed by network-manager.
 It uses `nmcli`- command  to work.
 
-Tested with nmcli 1.2.6
+Tested with 
+* nmcli 1.2.6, 
+* nmcli 1.20.4-1, kupfer v319
 
 ## install 
 ```
