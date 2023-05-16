@@ -11,6 +11,7 @@ __author__ = "Benjamin Jacob <benni.jacob@gmail.com>"
 from kupfer.objects import Action, Source, Leaf, TextLeaf
 from kupfer.obj.apps import ApplicationSource
 from kupfer import icons
+from kupfer import utils
 import subprocess
 import os
 import time
@@ -22,21 +23,22 @@ action_connect = "network-connect"
 action_disconnect = "network-disconnect"
 
 # cli - commands
-listConnections = "nmcli -t -f uuid,name,type connection show;"
+listConnections = "nmcli -t -f uuid,name,type connection show"
 activeUuids = "nmcli -t -f uuid connection show --active"
 connectUUid = "nmcli connection up "
 disconnectUUid = "nmcli connection down "
 
 # display only VPN connections
 vpnonly = True
-
+# print debugging output
+verbose = False
 
 class Connect(Action):
     def __init__(self):
         Action.__init__(self, _("Connect"))
 
     def activate(self, leaf):
-        """thingy"""
+        # utils.spawn_async(connectUUid + leaf.uuid)
         run_cmd(connectUUid + leaf.uuid, True)
         leaf.active = True
 
@@ -55,7 +57,7 @@ class Disconnect(Action):
         Action.__init__(self, _("Disconnect"))
 
     def activate(self, leaf):
-        """thingy"""
+        # utils.spawn_async(disconnectUUid + leaf.uuid)
         run_cmd(disconnectUUid + leaf.uuid, True)
         leaf.active = False
 
@@ -96,6 +98,8 @@ class ConnectionSource(ApplicationSource):
 
     def update_connection_states(self):
         self.active_ids = []
+        if verbose:
+            print("query connection state")
         (stdout, exitcode) = run_cmd(activeUuids)
         lines = stdout.split("\n")
         for activeUuid in lines:
@@ -105,8 +109,12 @@ class ConnectionSource(ApplicationSource):
 
         for con in self.connections:
             con.active = con.uuid in self.active_ids
+            if verbose:
+                print("connection "+con.name+" is active:"+str(con.uuid in self.active_ids))
 
     def update_available_connections(self):
+        if verbose:
+            print("query overall available connections")
         (stdout, exitcode) = run_cmd(listConnections, False)
         lines = stdout.split("\n")
         for connStr in lines:
@@ -121,6 +129,8 @@ class ConnectionSource(ApplicationSource):
             uuid = parts[0]
             name = parts[1]
             active = False
+            if verbose:
+                print("connection "+name+" is active " + str(active))
             self.connections.append(Connection(uuid, name, active))
 
     def initialize(self):
@@ -156,24 +166,35 @@ class Connection(Leaf):
         Leaf.__init__(self, self.uuid, name)
 
     def get_actions(self):
-        print("get actions for " + str(self.active))
         if not self.active:
-            yield Connect()
-            yield Disconnect()
+            if verbose:
+                print(self.name + " is active conn,discon")
+            c = Connect()
+            c.rank_adjust = 9
+            dc = Disconnect()
+            dc.rank_adjust = 5
+            yield c
+            yield dc
         else:
-            yield Disconnect()
-            yield Connect()
+            if verbose:
+                print(self.name + " is active, discon,con")
+            c = Connect()
+            c.rank_adjust = 2
+            dc = Disconnect()
+            dc.rank_adjust = 5
+            yield dc
+            yield c
 
     def repr_key(self):
         # the Note URI is unique&persistent for each note
         return self.uuid
 
     def get_description(self):
-
-        connected = "Verbunden"
+        # TODO: how to translate this ?
+        connected = _("established")
         if not self.active:
-            connected = "Getrennt"
-        return "Die Verbindung " + str(self.name) + " ist " + connected
+            connected =_("closed")
+        return _("The connection") + " "+str(self.name) + " " + _("is") + " " + connected
 
     def get_icon_name(self):
         return connection_icon
@@ -185,23 +206,26 @@ class Connection(Leaf):
             return icons.ComposedIcon(source_icon, action_disconnect)
 
 
-def run_cmd(cmd, aszync=False):
-    process = subprocess.Popen(cmd,
+def run_cmd(cmd, runAsync=False):
+    if verbose:
+        print("exec cmd: " + cmd)
+    if runAsync:
+        subprocess.Popen(cmd, shell=True)
+        return
+
+    process = subprocess.run(cmd,
                                shell=True,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
                                universal_newlines=True,
                                preexec_fn=os.setpgrp)
-    print(cmd)
-    if aszync:
+    if (async):
         return
     # collect stdout & stderr
-    stdoutdata = ""
-
     try:
         stdoutdata, errs = process.communicate(timeout=15)
     except TimeoutExpired:
         process.kill()
         stdoutdata, errs = process.communicate()
-
     return [stdoutdata, process.returncode]
+
