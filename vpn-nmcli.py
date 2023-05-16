@@ -213,18 +213,16 @@ def run_cmd(cmd, runAsync=False):
         subprocess.Popen(cmd, shell=True)
         return
 
-    process = subprocess.run(cmd,
+    process = subprocess.Popen(cmd,
                                shell=True,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
                                universal_newlines=True,
                                preexec_fn=os.setpgrp)
-    if (async):
-        return
     # collect stdout & stderr
     try:
         stdoutdata, errs = process.communicate(timeout=15)
-    except TimeoutExpired:
+    except subprocess.TimeoutExpired:
         process.kill()
         stdoutdata, errs = process.communicate()
     return [stdoutdata, process.returncode]
