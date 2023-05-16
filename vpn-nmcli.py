@@ -22,7 +22,7 @@ action_connect = "network-connect"
 action_disconnect = "network-disconnect"
 
 # cli - commands
-listConnections = "nmcli -t -f uuid,name,type connection show"
+listConnections = "nmcli -t -f uuid,name,type connection show;"
 activeUuids = "nmcli -t -f uuid connection show --active"
 connectUUid = "nmcli connection up "
 disconnectUUid = "nmcli connection down "
@@ -107,7 +107,7 @@ class ConnectionSource(ApplicationSource):
             con.active = con.uuid in self.active_ids
 
     def update_available_connections(self):
-        (stdout, exitcode) = run_cmd(listConnections)
+        (stdout, exitcode) = run_cmd(listConnections, False)
         lines = stdout.split("\n")
         for connStr in lines:
             if not connStr:
@@ -115,8 +115,9 @@ class ConnectionSource(ApplicationSource):
             parts = connStr.split(":")
             con_type = parts[2]
 
-            if vpnonly and con_type != "vpn":
+            if vpnonly and con_type != "vpn" and con_type != "wireguard":
                 continue
+
             uuid = parts[0]
             name = parts[1]
             active = False
@@ -155,6 +156,7 @@ class Connection(Leaf):
         Leaf.__init__(self, self.uuid, name)
 
     def get_actions(self):
+        print("get actions for " + str(self.active))
         if not self.active:
             yield Connect()
             yield Disconnect()
@@ -183,26 +185,23 @@ class Connection(Leaf):
             return icons.ComposedIcon(source_icon, action_disconnect)
 
 
-def run_cmd(cmd, async=False):
+def run_cmd(cmd, aszync=False):
     process = subprocess.Popen(cmd,
                                shell=True,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
                                universal_newlines=True,
                                preexec_fn=os.setpgrp)
-    if (async):
+    print(cmd)
+    if aszync:
         return
     # collect stdout & stderr
     stdoutdata = ""
-    for line in iter(process.stdout.readline, b''):
-        stdoutdata = stdoutdata + line
 
-    result = None
-    cnt_gate = 0
-    while result is None:
-        result = process.poll()
-        cnt_gate += 1
-        if cnt_gate > 50:
-            break
-        time.sleep(0.2)
+    try:
+        stdoutdata, errs = process.communicate(timeout=15)
+    except TimeoutExpired:
+        process.kill()
+        stdoutdata, errs = process.communicate()
+
     return [stdoutdata, process.returncode]
