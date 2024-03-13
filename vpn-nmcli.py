@@ -11,7 +11,6 @@ __author__ = "Benjamin Jacob <benni.jacob@gmail.com>"
 from kupfer.obj import Action, Source, Leaf, TextLeaf
 from kupfer.obj.apps import ApplicationSource
 from kupfer import icons
-from kupfer import utils
 import subprocess
 import os
 import time
