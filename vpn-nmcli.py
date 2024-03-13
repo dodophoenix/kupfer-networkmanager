@@ -8,7 +8,7 @@ __description__ = _("Connects and Disconnects vpn Connections using nmcli comman
 __version__ = ""
 __author__ = "Benjamin Jacob <benni.jacob@gmail.com>"
 
-from kupfer.objects import Action, Source, Leaf, TextLeaf
+from kupfer.obj import Action, Source, Leaf, TextLeaf
 from kupfer.obj.apps import ApplicationSource
 from kupfer import icons
 from kupfer import utils
@@ -30,15 +30,19 @@ disconnectUUid = "nmcli connection down "
 
 # display only VPN connections
 vpnonly = True
+# if vpnonly is set to true only valid_types are listed as available connections
+# types compared against output of type field in `nmcli -t -f uuid,name,type connection show`
+valid_types = ["vpn", "wireguard"]
+
 # print debugging output
 verbose = False
 
 class Connect(Action):
-    def __init__(self):
+    def __init__(self, ranked=50):
         Action.__init__(self, _("Connect"))
+        self.rank_adjust = ranked
 
     def activate(self, leaf):
-        # utils.spawn_async(connectUUid + leaf.uuid)
         run_cmd(connectUUid + leaf.uuid, True)
         leaf.active = True
 
@@ -53,11 +57,11 @@ class Connect(Action):
 
 
 class Disconnect(Action):
-    def __init__(self):
+    def __init__(self, ranked=50):
         Action.__init__(self, _("Disconnect"))
+        self.rank_adjust = ranked
 
     def activate(self, leaf):
-        # utils.spawn_async(disconnectUUid + leaf.uuid)
         run_cmd(disconnectUUid + leaf.uuid, True)
         leaf.active = False
 
@@ -82,7 +86,8 @@ class ConnectionSource(ApplicationSource):
         """
         return True
 
-    def __init__(self):
+    def __init__(self, name=_("VPN - NMCLI")):
+        super().__init__(name)
         self.connections = []
         self.active_ids = []
 
@@ -123,7 +128,7 @@ class ConnectionSource(ApplicationSource):
             parts = connStr.split(":")
             con_type = parts[2]
 
-            if vpnonly and con_type != "vpn" and con_type != "wireguard":
+            if vpnonly and con_type not in valid_types:
                 continue
 
             uuid = parts[0]
@@ -166,24 +171,12 @@ class Connection(Leaf):
         Leaf.__init__(self, self.uuid, name)
 
     def get_actions(self):
-        if not self.active:
-            if verbose:
-                print(self.name + " is active conn,discon")
-            c = Connect()
-            c.rank_adjust = 9
-            dc = Disconnect()
-            dc.rank_adjust = 5
-            yield c
-            yield dc
+        if self.active:
+            yield Disconnect(99)
+            yield Connect(70)
         else:
-            if verbose:
-                print(self.name + " is active, discon,con")
-            c = Connect()
-            c.rank_adjust = 2
-            dc = Disconnect()
-            dc.rank_adjust = 5
-            yield dc
-            yield c
+            yield Connect(99)
+            yield Disconnect(70)
 
     def repr_key(self):
         # the Note URI is unique&persistent for each note
@@ -206,20 +199,15 @@ class Connection(Leaf):
             return icons.ComposedIcon(source_icon, action_disconnect)
 
 
-def run_cmd(cmd, runAsync=False):
+def run_cmd(cmd, call_async=False):
     if verbose:
         print("exec cmd: " + cmd)
-    if runAsync:
-        subprocess.Popen(cmd, shell=True)
-        return
-
     process = subprocess.Popen(cmd,
                                shell=True,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT,
                                universal_newlines=True,
                                preexec_fn=os.setpgrp)
-    # collect stdout & stderr
     try:
         stdoutdata, errs = process.communicate(timeout=15)
     except subprocess.TimeoutExpired:
